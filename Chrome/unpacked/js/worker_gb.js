@@ -136,7 +136,8 @@ schedule,state,general,session,battle:true */
 		collectHours: 1.5,
 		minHealth: 200,
 		scoring : 'guild_battle_scoring',
-		basePath: 'tenxten_gb_formation,clickjq:.team_content:visible input[src*="fb_guild_btn_joinbattle_small.gif"],ten_battle'
+		//basePath: 'tenxten_gb_formation,clickjq:.team_content:visible input[src*="fb_guild_btn_joinbattle_small.gif"],ten_battle'
+		basePath: 'index,clickjq:a[href*="tenxten_gb_formation.php"] > img[src*="news_btn_enter.gif"],hundred_battle_view'
 	};
 	
 	gb.damageCalc = function(fR, pOa, i, ns, winChance, arr, bonus) {
