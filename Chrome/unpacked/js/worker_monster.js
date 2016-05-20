@@ -41,7 +41,7 @@ config,con,gm,schedule,state,general,session,conquest,monster:true */
 			fullC: '',
 			jFullC: '',
 			join: false,
-            charClass: '', // init value, false if class not found, otherwise class name with first letter in caps
+            charClass: '',
 			listStamina: '10',
 			listEnergy: '',
 			multiNode: false,
@@ -80,35 +80,38 @@ config,con,gm,schedule,state,general,session,conquest,monster:true */
 			switch (page) {
 			case 'raid':
 				if (caap.clickUrl.hasIndexOf('casuser=')) {
-					monster.checkResults_monster(page, resultsText, ajax, slice, lastClick);
-					break;
+					return monster.checkResults_monster(page, resultsText, ajax, slice, lastClick);
 				}
-				monster.checkResults_list(page, resultsText, ajax, slice);									
-				break;
+				return monster.checkResults_list(page, resultsText, ajax, slice);
+				
 			case 'player_monster_list':
 			case 'public_monster_list':
-			case 'guild_priority_mlist':	monster.checkResults_list(page, resultsText, ajax, slice, lastClick);					break;
+			case 'guild_priority_mlist':
+				return monster.checkResults_list(page, resultsText, ajax, slice);
+				
 			case 'battle_monster': 
 			case 'guildv2_battle_monster': 
 			case 'battle_expansion_monster': 
-			case 'festival_battle_monster': monster.checkResults_monster(page, resultsText, ajax, slice, lastClick);	break;
-			default :  break;
+				return monster.checkResults_monster(page, resultsText, ajax, slice, lastClick);
+			case 'festival_battle_monster': 
+				return monster.checkResults_monster(page, resultsText, ajax, slice, lastClick);
+				
+			default : 
+				break;
 			}
-			monster.spent = null;
-			monster.amount = null;
-
-		} catch (err) {
+        } catch (err) {
             con.error("ERROR in checkResults_onMonster: " + err.stack);
         }
     };
 	
 	/*jslint unparam: false */
-    monster.checkResults_list = function (page, resultsText, ajax, slice, lastClick) {
+    monster.checkResults_list = function (page, resultsText, ajax, slice) {
 	/*jslint unparam: true */
         try {
 			ignoreJSLintError(resultsText, ajax);
-				
-			var pageURL = session.getItem('clickUrl', ''),
+			
+			var lastClick = $u.setContent(monster.lastClick, session.getItem('clickUrl','')),
+				pageURL = session.getItem('clickUrl', ''),
 				mR = {},
 				it = 0,
 				now = Date.now(),
@@ -183,24 +186,25 @@ config,con,gm,schedule,state,general,session,conquest,monster:true */
 				mR.listReviewed = now;
 				
 				switch ($u.setContent($j(which.button, this).attr("src"), '').regex(/_btn_(\w*)/)) {
-				case 2:				feed.checkDeath(mR);		mR.state = 'Collect';		 		break;
+				case 2:				mR.state = 'Collect';									 		break;
 				case 3:				mR.state = 'Attack';											break;
+				case 4:				feed.checkDeath(mR);			mR.state = 'Dead';				break;
+				case 'view':		mR.state = 'Dead';												break;
 				case 'atk':			mR.state = mR.state == 'Join' ? 'Join' : 'Attack';				break;
 				case 'join':	
 				case 'joinmonster':	mR.state = $u.setContent(mR.state, 'Join');						break;
-				case 4:
-				case 'view':
 				case 'collect':		feed.checkDeath(mR);
 									mR.state = mR.state == 'Attack' ? 'Dead or fled' : $u.setContent(mR.state, 'Dead or fled');
 									break;
 				default:			con.warn("Unknown engageButtonName state for " + mR.name);		break;
 				}
 				
-				if (['Done', 'Collect', 'Dead or fled'].hasIndexOf(mR.state)) {
-					mR.color = 'grey';
+				if (mR.state == 'Attack' && mR.etf > 0 && Date.now() > mR.etf) {
+					mR.staminaSpent = 0;
+					mR.energySpent = 0;
 				}
-				monster.checkReset(mR);
-
+				
+				mR.color = ['Dead', 'Collect', 'Dead or fled'].hasIndexOf(mR.state) ? 'grey' : mR.state == 'Attack' && mR.color == 'grey' ? 'black' : mR.color;
 				if (publicList && !feed.joinable(mR)) {
 					return true;
 				}
@@ -265,7 +269,7 @@ config,con,gm,schedule,state,general,session,conquest,monster:true */
 				con.log(2, 'Monster: already have a priority monster, setting one hour wait to try again');
 				schedule.setItem('monsterPriorityWait', 3600);
 			}
-			
+
 			monsterDiv = $j(monster.onMonsterHeader, slice);
 
 			if (visiblePageChangetf) {
@@ -313,9 +317,6 @@ config,con,gm,schedule,state,general,session,conquest,monster:true */
 			link = monster.cleanLink(link, id, mpool);
 			cM = monster.getRecord(link); // current monster record
 			cM.rix = isRaid ? '&rix=' + $u.setContent(cM.link.regex(/rix=(\d+)/), 2) : '';
-			if (resultsText.match(/\d/) && $u.hasContent(monster.spent)) {
-				cM[monster.spent] += monster.amount;
-			}
 
 			// Get the user name
 			if (id == stats.FBID) {
@@ -521,11 +522,13 @@ config,con,gm,schedule,state,general,session,conquest,monster:true */
 			
 			// Is it alive?
 			if ($u.hasContent(time)) {
-				if ((time[0] + (time[1] + 1) / 60).dp(2) > cM.time) {
-					monster.checkReset(cM, 'force');
+				cM.time = (time[0] + time[1] / 60).dp(2);
+				if (cM.etf != 0 && Date.now() > cM.etf) {
+					cM.spentStamina = 0;
+					cM.spentEnergy = 0;
 				}
-				cM.time = (time[0] + (time[1] + 1) / 60).dp(2);
-
+				cM.etf = Date.now() + cM.time * 3600 * 1000;
+				
 				// new siege style
 				tempDiv = $j("#objective_list_section div[style*='mobjective_container']", slice);
 				if ($u.hasContent(tempDiv)) {
@@ -569,53 +572,59 @@ config,con,gm,schedule,state,general,session,conquest,monster:true */
 				// if the monster has parts, hit the weakest minion first, and then hit the part with the least health next
 				partsDiv = $j("#app_body div[id^='monster_target_']");
 				if ($u.hasContent(partsDiv)) {
-					cM.mainOnly = true;
-					partsHealth = [];
-					//con.log(2, "The monster has " + partsDiv.length + " parts");
+                    cM.mainOnly = true;
+                    partsHealth = [];
+                    //con.log(2, "The monster has " + partsDiv.length + " parts");
 
-					// Click first order parts which have health
-					partsDiv.each( function(index) {
-						partsElem = $j(this).find('div[style*="multi_smallhealth.jpg"]');
-						if ($u.hasContent(partsElem)) {
-							//partsElem2 = partsElem.children[1].children[0];
-							tNum = $u.setContent($j(partsElem).getPercent("width"), 0);
-							tempDiv =  $j("#app_body span[id^='target_monster_info_" + (index + 1) + "']");
-							//con.log(2, 'desciptor text: ' + tempDiv.text());
-							if ($u.hasContent(tempDiv)) {
-								partsHealth.push(tNum);
-								if (tempDiv.text().regex(/reduce/)) {
-									if (tNum < 75) {
-										cM.mainOnly = false;
-									}
-									arms.push(tNum);
-									armsList.push((index + 1).toString());
-								} else if (tempDiv.text().regex(/hinder/)) {
-									minions.push(tNum);
-								} else {
-									mains.push(tNum);
-								}
-							} else {
-								con.warn('No info for body part ' + (index + 1) + ", assuming it's a minion", $j(this));
-								minions.push(tNum);
-							}
-						} else {
-							con.warn('No children of body part for health width');
-						}
-					});
-					//con.log(2, 'parts list', minions, arms, mains);
-					
-					// Vargulis or Samael three main, no arm type
-					if (mains.length == 3 && arms.length == 0) {
-						// if current target is within 5% health of healthiest part, keep attacking, otherwise 
-						// switch to healthiest part    80 60 77
-						cM.targetPart = cM.targetPart == 0 ? 1 : cM.targetPart;
-						cM.targetPart = (mains[cM.targetPart - 1] >= caap.minMaxArray(mains, 'max', 0, 101) - 5 
-							&& mains[cM.targetPart - 1] > 0) ? cM.targetPart 
-							: mains.lastIndexOf(caap.minMaxArray(mains, 'max', 0, 101)) + 1;
-					} else {
-						cM.targetPart = partsHealth.lastIndexOf(minions.length ? caap.minMaxArray(minions, 'min', 0)
-							: Math.min((arms.length ? caap.minMaxArray(arms, 'min', 0) : 100), caap.minMaxArray(mains, 'min', 0))) + 1;
-					}
+                    // Click first order parts which have health
+                    partsDiv.each(function (index) {
+                        partsElem = $j(this).find('div[style*="multi_smallhealth.jpg"]');
+                        if ($u.hasContent(partsElem)) {
+                            //partsElem2 = partsElem.children[1].children[0];
+                            tNum = $u.setContent($j(partsElem).getPercent("width"), 0);
+                            tempDiv = $j("#app_body span[id^='target_monster_info_']:nth-child(" + parseInt(index + 1) + ")");
+                            //con.log(2, 'desciptor text: ' + tempDiv.text());
+                            if ($u.hasContent(tempDiv)) {
+                                var partsMinion = $j(this).find('img[src*="submonster_frame_"]');
+                                partsHealth.push(tNum);
+                                if ($u.hasContent(partsMinion)) {
+
+                                    minions.push(tNum);/*
+                                } else if (tempDiv.text().regex(/hinder/)) {
+                                    minions.push(tNum);*/
+                                } else if (tempDiv.text().regex(/reduce/)) {
+                                    if (tNum < 75) {
+                                        cM.mainOnly = false;
+                                    }
+                                    arms.push(tNum);
+                                    armsList.push((index + 1).toString());
+                                } else {
+                                    mains.push(tNum);
+                                }
+                                partsMinion = null;
+                            } else {
+                                con.warn('No info for body part ' + (index + 1) + ", assuming it's a minion", $j(this));
+                                minions.push(tNum);
+                            }
+                        } else {
+                            con.warn('No children of body part for health width');
+                        }
+                    });
+                    //con.log(2, 'parts list', minions, arms, mains);
+
+                    // Vargulis or Samael three main, no arm type
+                    if (mains.length == 3 && arms.length == 0) {
+                        // if current target is within 5% health of healthiest part, keep attacking, otherwise
+                        // switch to healthiest part    80 60 77
+                        cM.targetPart = cM.targetPart == 0 ? 1 : cM.targetPart;
+                        cM.targetPart = (mains[cM.targetPart - 1] >= caap.minMaxArray(mains, 'max', 0, 101) - 5
+                             && mains[cM.targetPart - 1] > 0) ? cM.targetPart
+                         : mains.lastIndexOf(caap.minMaxArray(mains, 'max', 0, 101)) + 1;
+                    } else {
+                        cM.targetPart = partsHealth.lastIndexOf(minions.length > 0 ? caap.minMaxArray(minions, 'min', 0)
+                             : Math.min((arms.length && caap.minMaxArray(arms, 'min', 0) !== undefined ? caap.minMaxArray(arms, 'min', 0) : 100), caap.minMaxArray(mains, 'min', 0))) + 1;
+                    }
+                    con.log(2, 'cM.targetPart', cM.targetPart);
 						
 					cM.mainOnly = armsList.hasIndexOf(cM.targetPart) ? false : cM.mainOnly;
 					// Define if use user or default order parts
@@ -649,10 +658,8 @@ config,con,gm,schedule,state,general,session,conquest,monster:true */
 					if (cM.state == 'Join') {
 						con.log(1, 'Joined a feed monster with ' + cM.damage, cM);
 					}
-
 					cM.state = 'Attack';
-					monster.checkReset(cM);
-					cM.etf = Date.now() + cM.time * 3600 * 1000;
+					cM.color = cM.color == 'grey' ? '' : cM.color;
 					
 					if (style == 'class') {
 						// Character type stuff
@@ -770,9 +777,6 @@ config,con,gm,schedule,state,general,session,conquest,monster:true */
 							con.log(2, "Ignoring " + cM.name + " as per Finder settings", cM);
 							deleteMon = true;
 						}
-					} else if (cM.spentStamina > 0 && cM.etf > 0 && Date.now() < cM.etf) {
-						con.error('Unable to find monster damage, and yet I spent stamina on this monster.'
-							+ ' Leaving update for next visit to see if damage appears');
 					} else { // I haven't hit it, but I can't join it, so delete
 						con.log(2, "Deleting unjoinable monster " + cM.name + " off Feed", cM);
 						deleteMon = true;
@@ -781,10 +785,10 @@ config,con,gm,schedule,state,general,session,conquest,monster:true */
 			// It's dead
 			} else {
 				// And I haven't hit it and it's not conquest
-				if (!monster.damaged(cM) && !monster.isConq(cM) && !cM.link.hasIndexOf('=' + stats.FBID)) {
+				if (!monster.damaged(cM) && !monster.isConq(cM)) {
 					//and it's dead and not a conquest monster, so delete
 					if (monster.hasRecord(cM.link)) {
-						monster.deleteRecord(cM.link);
+						monster.deleteRecord(lastClick);
 						con.log(2, "Deleting dead monster " + cM.name + " off Feed", cM);
 						deleteMon = true;
 					}
@@ -825,15 +829,6 @@ config,con,gm,schedule,state,general,session,conquest,monster:true */
 
 	monster.isConq = function(cM) {
 		return cM.link.hasIndexOf("guildv2_battle_monster.php");
-	};
-	
-	monster.checkReset = function(mR, force) {
-		if (force || (mR.state == 'Attack' && (mR.color == 'grey' || (mR.etf > 0 && Date.now() > mR.etf)))) {
-			mR.color = mR.color == 'grey' ? 'black' : mR.color;
-			mR.staminaSpent = 0;
-			mR.energySpent = 0;
-			mR.charClass = '';
-		}
 	};
 	
     caap.inLevelUpMode = function () {
@@ -1107,7 +1102,6 @@ config,con,gm,schedule,state,general,session,conquest,monster:true */
 					conquestCollect = !monster.isConq(cM) || hunterPts == 'Never' || stats.conquest.Hunter < hunterPts;
 					if (conquestCollect && (/:collect\b/.test(cM.conditions) ||
 						(/:collectsmall\b/.test(cM.conditions) && cM.damage < 400000) ||
-						(/:collectold\b/.test(cM.conditions) && cM.lMissing > 3) ||
 						(!/:!collect\b/.test(cM.conditions) && config.getItem('monsterCollectReward', false)))) {
 						message = 'Collecting ';
 						if (general.Select('CollectGeneral')) {
@@ -1293,21 +1287,21 @@ config,con,gm,schedule,state,general,session,conquest,monster:true */
 							// If just about to do big hit, do any quests to use energy first.
 							if (stats.energy.num > cQ.energy && cQ.experience < stats.exp.dif) {
 								result = quest.worker();
-								if (caap.passThrough(result, 'quest')) { 
+								if (caap.passThrough(result)) { 
 									return result;
 								}
 							}
 							// Next see if we can use any of the remaining stamina in battle
 							if (stats.exp.dif > 5 && stats.stamina.num - statRequireBig > 0) {
 								result = battle.worker(stats.stamina.num - statRequireBig);
-								if (caap.passThrough(result, 'battle')) { 
+								if (caap.passThrough(result)) { 
 									return result;
 								}
 							}
 							// Last do a big quest if that's the biggest we've got
 							if (stats.energy.num > cQ.energy && cQ.experience > statRequireBig * 2.2) {
 								result = quest.worker();
-								if (caap.passThrough(result, 'quest')) { // If just about to do big hit, do any quests to use energy first.
+								if (caap.passThrough(result)) { // If just about to do big hit, do any quests to use energy first.
 									return result;
 								}
 							}
@@ -1343,8 +1337,7 @@ config,con,gm,schedule,state,general,session,conquest,monster:true */
 			}
 
             // Set general and go to monster page
-			result = caap.navigate2('@' + menuGeneral + ',ajax:' + cM.link + (cM.targetPart > 0 ? (",clickjq:#app_body #monster_target_" +
-				cM.targetPart + " img[src*='multi_selectbtn.jpg'],jq:#app_body #expanded_monster_target_" + cM.targetPart + ":visible") : ''));
+            result = caap.navigate2('@' + menuGeneral + ',ajax:' + cM.link + (cM.targetPart > 0 ? (",clickjq:#app_body div[id^='monster_target_']:nth-child(" + cM.targetPart + ") img[src*='multi_selectbtn.jpg'],jq:#app_body div[id^='monster_target_']:nth-child(" + cM.targetPart + ")>div[id^='collapsed_monster_target_']:hidden") : ''));
 			
 			monster.lastClick = cM.link;
             if (result !== false) {
@@ -1439,14 +1432,14 @@ config,con,gm,schedule,state,general,session,conquest,monster:true */
                     }
 
                     caap.click(attackButton);
-					monster.spent = 'spent' + (fightMode === 'Fortify' ? 'Energy' : 'Stamina');
-					monster.amount = statRequire;
+					cM['spent' + (fightMode === 'Fortify' ? 'Energy' : 'Stamina')] += statRequire;
 					
 					// Record healing debt or repayments
 					if (cM.fortify >= 0 && healPercStam > 0 && (!cM.charClass || ['Mage','Rogue'].indexOf(cM.charClass) == -1)) {
 						cM.debtStamina = Math.max(0, cM.debtStamina + (fightMode === 'Fortify' ? -statRequire / healPercStam : statRequire));
 						cM.debtStart = cM.debtStart == -1 && fightMode === 'Monster' ? Math.min(cM.fortify, 97) 
 							: cM.debtStamina ? cM.debtStart : -1;
+						session.setItem('ReleaseControl', false);
 					}
                     // dashboard autorefresh fix
                     localStorage.AFrecentAction = true;
@@ -2269,9 +2262,7 @@ config,con,gm,schedule,state,general,session,conquest,monster:true */
                         // If this monster does not match, skip to next one
                         if ((monString !== 'all' && !monster.getRecord(thisMon).name.toLowerCase().hasIndexOf(monString)) ||
 							(conditions.regex(/(:conq)\b/) && !cM.link.hasIndexOf("guildv2_battle_monster.php")) ||
-							(conditions.regex(/(:!conq)\b/) && cM.link.hasIndexOf("guildv2_battle_monster.php")) ||
-							(conditions.regex(/(:old)\b/) && cM.time > 144) ||
-							(conditions.regex(/(:!old)\b/) && cM.time < 144)) {
+							(conditions.regex(/(:!conq)\b/) && cM.link.hasIndexOf("guildv2_battle_monster.php"))) {
                             return;
                         }
 
