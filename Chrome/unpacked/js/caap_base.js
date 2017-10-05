@@ -1663,10 +1663,14 @@ gb,essence,gift,chores,quest */
 
     caap.initial = function () {
         function chatListener(event) {
-            if (event.target.className === "fbDockWrapper fixed_always fbDockWrapperRight") {
-                event.target.style.display = "none";
-                $j("#pagelet_dock").off("DOMNodeInserted", chatListener);
-            }
+			try {
+				if (event.target.className === "fbDockWrapper fixed_always fbDockWrapperRight") {
+					event.target.style.display = "none";
+					$j("#pagelet_dock").off("DOMNodeInserted", chatListener);
+				}
+			} catch (err) {
+				con.error("ERROR in chatListener: " + err.stack);
+			}
         }
         try {
             var shiftDown, tDiv;
@@ -5039,6 +5043,10 @@ gb,essence,gift,chores,quest */
 			if (config.getItem('AutoArchives', false) && caap.ifClick($j("input[src*='header_persist_btn_eneable.gif']", headerDiv))) {
 				return true;
 			} 
+			if (schedule.check('DailySpin') && config.getItem('DailySpin', false) && caap.ifClick($j("a[href='index.php']:first"))) {
+				schedule.setItem('DailySpin', 5 * 60);
+				return true;
+			} 
 			if (schedule.check('doConquestCollect') && config.getItem('doConquestCollect', false)
 				&& caap.ifClick($j("div[style*='header_persist_collect_container_wood.jpg'] input[src*='header_persist_btn_collect.gif']", headerDiv))) {
 				schedule.setItem('doConquestCollect', 5 * 60);
@@ -5059,6 +5067,35 @@ gb,essence,gift,chores,quest */
             return false;
         }
     };
+
+    caap.checkDailySpin = function () {
+		var now = new Date();
+		try {
+			/* Checking result of daily spin */
+			if (caap.checkForImage('dailyspin.png').length) {
+				localStorage['DailySpinLastDate'] =  now;
+				var reward = $j('div[style*="tc_spin_nameplate.gif"]').eq(0).text().trim();
+				con.log(1,reward);
+				localStorage['DailySpinLastReward'] =  reward;
+				var dailySpinStat = localStorage.hasOwnProperty('DailySpinStat')?JSON.parse(localStorage['DailySpinStat']):{ reward:{"last":now, "nb":0}};
+				if (dailySpinStat.hasOwnProperty(reward)) {
+					dailySpinStat[reward].last=now;
+					dailySpinStat[reward].nb++;
+				} else {
+					dailySpinStat[reward] = {"last":now, "nb":1};
+				}
+				localStorage['DailySpinStat'] = JSON.stringify(dailySpinStat);
+			}
+			/* Check if daily spin is available*/
+			if (caap.checkForImage('news_btn_join.gif').length) {
+				if (caap.ifClick($j("a[href*='index.php?spin=1']"))) {
+					schedule.setItem('DailySpin', 24 * 60 * 60);			
+				}
+			}
+		} catch (err) {
+			con.error("ERROR in checkDailySpin: " + err.stack);
+		}
+	};
 
     caap.checkMyGuildIds = function () {
 		try {

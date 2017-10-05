@@ -372,7 +372,7 @@ schedule,gifting,state,army, general,session,monster,guild_monster */
             return false;
         }
 
-        return caap.bank();
+        return chores.bank();
     };
 
  	worker.addAction({fName : 'chores.bank', priority : 400, description : 'Banking'});

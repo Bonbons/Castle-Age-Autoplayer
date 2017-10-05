@@ -61,7 +61,7 @@ schedule,gifting,state,army, general,session,monster,guild_monster */
 				url: url,
 				dataType: 'text',
 				error: function (XMLHttpRequest, textStatus, errorThrown) {
-					con.error("gsheet.load error: using saved values", XMLHttpRequest, textStatus, errorThrown);
+					con.warn("gsheet.load error: using saved values", XMLHttpRequest, textStatus, errorThrown);
 				},
 				success: function (data) {
 					try {
@@ -119,10 +119,10 @@ schedule,gifting,state,army, general,session,monster,guild_monster */
 													newVal = values[i].v.toString();
 													break;
 												case 'number':
-													newVal = values[i].v.toString();
+													newVal = values[i].f.match(/[%\+\-]/)?values[i].f:values[i].v;
 													break;
 												case 'string':
-													newVal = values[i].v.toLowerCase()=='false'? false:values[i].v.toLowerCase()=='true'? true:values[i].v;
+													newVal = values[i].v.toLowerCase()==='false'? false:values[i].v.toLowerCase()==='true'? true:values[i].v;
 													if (typeof newVal == 'boolean') oldVal= (!newVal);
 													break;
 												default:

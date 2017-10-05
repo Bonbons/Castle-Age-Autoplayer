@@ -429,18 +429,22 @@ schedule,state,general,session,monster */
                 maxChainsInstructions = "Maximum number of chain hits after the initial attack.",
                 minRankInst = "The lowest rank that you are willing to spend your Guild Coins on. " +
 					"Use +/- to indicate relative rank, e.g. -2 to attack opponents down to two ranks below your rank. " +
+					"Use % to indicate relative rank, e.g. 50% to attack opponents with half your rank. " +
 					"If no +/-, the number is an absolute rank, e.g. 16 would mean do not attack below rank Baron (16). " +
 					"Leave blank to attack any rank.",
                 maxRankInst = "The highest rank that you are willing to spend your Guild Coins on. " +
 					"Use +/- to indicate relative rank, e.g. +2 to attack opponents up to two ranks over your rank. " +
+					"Use % to indicate relative rank, e.g. 200% to attack opponents with twice your rank. " +
 					"If no +/-, the number is an absolute rank, e.g. 16 would mean do not attack above rank Baron (16). " +
 					"Leave blank to attack any rank.",
                 minLevelInst = "The lowest level that you are willing to spend your Guild Coins on. " +
 					"Use +/- to indicate relative level, e.g. -200 to attack opponents down to 200 levels below your level. " +
+					"Use % to indicate relative level, e.g. 50% to attack opponents with half your level. " +
 					"If no +/-, the number is an absolute level, e.g. 190 would mean do not attack below level 190. " +
 					"Leave blank to attack any level.",
                 maxLevelInst = "The highest level that you are willing to spend your Guild Coins on. " +
 					"Use +/- to indicate relative level, e.g. +200 to attack opponents up to 200 levels over your level. " +
+					"Use % to indicate relative level, e.g. 200% to attack opponents with twice your level. " +
 					"If no +/-, the number is an absolute level, e.g. 190 would mean do not attack above level 190. " +
 					"Leave blank to attack any level.",
                 conquestList = ['Coins Available', 'At Max Coins', 'At X Coins', 'Never'],
@@ -490,10 +494,10 @@ schedule,state,general,session,monster */
             htmlCode += caap.makeDropDownTR("Target Level", 'conquestLevels', levelList, levelsInst, '', 'Any', false, false, 62);
             htmlCode += caap.makeNumberFormTR("Max Chains", 'ConquestMaxChains', maxChainsInstructions, 4, '', '');
             htmlCode += caap.makeTD("Attack targets that are not:");
-            htmlCode += caap.makeNumberFormTR("Lower Than Rank", 'ConquestMinRank', minRankInst, '', '', 'text'); 
-            htmlCode += caap.makeNumberFormTR("Higher Than Rank", 'ConquestMaxRank', maxRankInst, '', '', 'text'); 
-            htmlCode += caap.makeNumberFormTR("Lower Than Level", 'ConquestMinLevel', minLevelInst, '', '', 'text'); 
-            htmlCode += caap.makeNumberFormTR("Higher Than Level", 'ConquestMaxLevel', maxLevelInst, '', '', 'text'); 
+            htmlCode += caap.makeNumberFormTR("Lower Than Rank", 'conquestMinRank', minRankInst, '', '', 'text'); 
+            htmlCode += caap.makeNumberFormTR("Higher Than Rank", 'conquestMaxRank', maxRankInst, '', '', 'text'); 
+            htmlCode += caap.makeNumberFormTR("Lower Than Level", 'conquestMinLevel', minLevelInst, '', '', 'text'); 
+            htmlCode += caap.makeNumberFormTR("Higher Than Level", 'conquestMaxLevel', maxLevelInst, '', '', 'text'); 
             htmlCode += caap.display.end('WhenLoE', 'isnot', 'Always');
             htmlCode += caap.display.end('WhenConquest', 'isnot', 'Never');
             htmlCode += caap.endToggle;

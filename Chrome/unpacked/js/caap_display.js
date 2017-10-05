@@ -65,14 +65,17 @@ schedule,gifting,state,army, general,session,monster,guild_monster */
             htmlCode = "<select class='caap_ff caap_fs caap_ww'" + id + css + title + formatParms + ">";
             htmlCode += "<option disabled='disabled' value='not selected'>Choose one</option>";
             dropDownList.forEach( function(item, i) {
-                title = instructions[i] ? " title='" + instructions[i].toString().escapeHTML() + "'" : '';
-                htmlCode += "<option value='" + item.toString().escapeHTML() + "'" + (selectedItem === item ? " selected='selected'" : '') + title + ">" + item.toString().escapeHTML() + "</option>";
+				if (item && item != null ) {
+					title = instructions[i] ? " title='" + instructions[i].toString().escapeHTML() + "'" : '';
+					htmlCode += "<option value='" + (item? item.toString().escapeHTML():'') + "'" + (selectedItem === item ? " selected='selected'" : '') + title + ">" + (item? item.toString().escapeHTML() : '') + "</option>";
+				}
             });
 
             htmlCode += "</select>";
+			
             return htmlCode;
         } catch (err) {
-            con.error("ERROR in makeDropDown: " + err);
+            con.error("ERROR in makeDropDown '"+idName+"': " + err);
             return '';
         }
     };

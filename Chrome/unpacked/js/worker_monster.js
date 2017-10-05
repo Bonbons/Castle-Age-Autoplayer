@@ -1518,7 +1518,7 @@ config,con,gm,schedule,state,general,session,conquest,monster:true */
 	
 	monster.onMonsterHeader = "div[style*='dragon_title_owner'],div[style*='monster_header_'],div[style*='monster_'][style*='_title']" +
 		",div[style*='monster_'][style*='_header'],div[style*='boss_'][style*='_header'],div[style*='boss_header_']" +
-		",div[style*='newmonsterbanner_'],div[style*='festival_monsters_']";
+		",div[style*='newmonsterbanner_'],div[style*='festival_monsters_'],div[style*='fb_monster_banner_']";
 
     monster.completeButton = {
         'battle_monster': {

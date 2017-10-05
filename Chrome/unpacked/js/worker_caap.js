@@ -248,11 +248,10 @@ schedule,gifting,state,army, general,session,monster,feed */
 
             count = state.getItem('ajaxCTACount', 0);
             if (count < caap.recordCTA.length) {
-                caap.waitAjaxCTA = true;
-
-                caap.ajax(caap.recordCTA[count].code.AESDecrypt(caap.namespace), null, onError, onSuccess);
-
-                state.setItem('ajaxCTACount', count + 1);
+				caap.waitAjaxCTA = true;
+				con.log(1,"caap.recordCTA",count,caap.recordCTA.length,caap.recordCTA);
+				caap.ajax(caap.recordCTA[count].code.AESDecrypt(caap.namespace), null, onError, onSuccess);
+				state.setItem('ajaxCTACount', count + 1);
             } else {
                 caap.waitAjaxCTA = false;
                 state.setItem('ajaxCTACount', 0);
@@ -261,7 +260,7 @@ schedule,gifting,state,army, general,session,monster,feed */
 
             return true;
         } catch (err) {
-            con.error("ERROR in doCTAs: " + err);
+            con.warn("ERROR in doCTAs: " + err);
             return false;
         }
     };

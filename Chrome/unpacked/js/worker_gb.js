@@ -16,45 +16,60 @@ schedule,state,general,session,battle:true */
 	worker.add({ name: 'gb', recordIndex: 'label', recordsAreObj: true});
 
 	worker.addAction({worker : 'gb', priority : 1600, description : 'Guild Battle'});
-		
+
+    gb.msecDuringBattle = function(label) {
+		var time = 0;
+		switch (label) {
+			case 'gb100': time = 7200000; //2 hours = 2*60*60*1000 milliseconds
+						break;
+			case 'gbClassic': time = 18000000; //5 hours = 5*60*60*1000 milliseconds
+						break;
+			case 'gb10': time = 1800000; // 30 min = 30*60*1000 milliseconds
+						break;
+			default: time = 0;
+		}
+		return time;
+	};
+
     gb.record = function(label) {
         this.data = {
             label: label,
             attacker_guild_id: '',
             defender_guild_id: '',
             battle_id: '',
-			att : 0,
+            is_attacker: '1',
+			      att : 0,
             ticker: '',
-			collectedTime: 0,
-			lastBattleTime: 0,
-			startTime: 0,
-			endTime: 0,
-			burn: false,
-			state: 'Active',
-			seal: '0',
-			easy: false,
-			paths: [],
-			simtis: false, // someone in my tower is stunned
-			towerDesc: [],
-			firstScanDone: false,
-			heal:0,
-			healSplash: {},
-			t: { score: 0,
-				tokens: 1 },
-			tokens: 10,
-			last: 0,
-			nextTopReview: 0,
-			me: {shout: false},
+      			collectedTime: 0,
+      			lastBattleTime: 0,
+      			startTime: 0,
+      			endTime: 0,
+      			burn: false,
+      			state: 'Active',
+      			seal: '0',
+      			easy: false,
+      			paths: [],
+      			simtis: false, // someone in my tower is stunned
+      			towerDesc: [],
+      			firstScanDone: false,
+      			heal:0,
+      			healSplash: {},
+      			t: { score: 0,
+				        tokens: 1 },
+      			tokens: 10,
+      			last: 0,
+      			nextTopReview: 0,
+      			me: {shout: false},
             enemy: {
-				health : 0,
-				towers : {},
-				members : {},
-				attacks : []},
+      				health : 0,
+      				towers : {},
+      				members : {},
+      				attacks : []},
             your: {
-				health : 0,
-				towers : {},
-				members : {},
-				attacks : []},
+      				health : 0,
+      				towers : {},
+      				members : {},
+      				attacks : []},
             color: $u.bestTextColor(config.getItem("StyleBackgroundLight", "#E0C961"))
         };
     };
@@ -72,7 +87,7 @@ schedule,state,general,session,battle:true */
 			last: 0   // last seen timestamp
 		};
 	};
-	
+
     gb.member = function() {
         this.data = {
             position: 0,
@@ -113,11 +128,11 @@ schedule,state,general,session,battle:true */
 		waitHours: 3.9,
 		collectHours: 1.5,
 		minHealth: 200,
-		scoring : 'guild_battle_scoring',
-		actionUrl : 'hundred_battle_view.php?battle_id=&attacker_guild_id=&defender_guild_id=&battle_type=hundred&is_attacker=1&ajax=1',
+		scoring : 'gb100scoring',
+		actionUrl : 'hundred_battle_view.php?battle_id=&attacker_guild_id=&defender_guild_id=&battle_type=hundred&is_attacker=&ajax=1',
 		towerUrl : 'hundred_battle_view.php?battle_id='
 	};
-		
+
 	gb.gbClassic = {
 		name: 'Classic',
 		label: 'gbClassic',
@@ -128,11 +143,11 @@ schedule,state,general,session,battle:true */
 		waitHours: 8.9,
 		collectHours: 8.9,
 		minHealth: 1,
-		scoring : 'guild_battle_scoring',
+		scoring : 'gbClassicscoring',
 		actionUrl : 'guild_battle.php?attacker_guild_id=&defender_guild_id=&battle_type=2000&is_attacker=&ajax=1',
 		towerUrl : 'guild_battle.php?attacker_guild_id=&defender_guild_id=&battle_type=2000&is_attacker=&ajax=1'
 	};
-		
+
 	gb.gb10 = {
 		name: '10v10',
 		label: 'gb10',
@@ -143,13 +158,13 @@ schedule,state,general,session,battle:true */
 		waitHours: 3.9,
 		collectHours: 1.5,
 		minHealth: 200,
-		scoring : 'guild_battle_scoring',
-		actionUrl : 'ten_battle.php?battle_id=', 
+		scoring : 'gb10scoring',
+		actionUrl : 'ten_battle.php?battle_id=',
 		towerUrl : 'ten_battle.php?battle_id='
 	};
-	
+
 	gb.damageCalc = function(fR, pOa, i, ns, winChance, arr, bonus) {
-		
+
 		var hitNS = ns.regex(/(normal|seal)(?:normal|seal)?/), // Capture the first part of "normalseal" for hit damage for cleric
 			splashNS = ns.regex(/(?:normal|seal)?(normal|seal)/), // Capture the last part of "normalseal" for splash damage for cleric
 			s = fR.me.healthNum > gb[fR.label].minHealth && $u.hasContent(pOa.splash) ?
@@ -158,8 +173,8 @@ schedule,state,general,session,battle:true */
 			d = 0,
 			width = Math.floor(arr.length / 2),
 			start = i + 2 - width;
-			
-			
+
+
 		pOa.healths.slice(start, start + arr.length).forEach( function(e, ii) {
 			d = Math.min(Math.max(0, e - pOa.splashMax), (pOa.bases[i] + $u.setContent(bonus, 0)) * arr[ii]).dp();
 			if (d) {
@@ -168,26 +183,26 @@ schedule,state,general,session,battle:true */
 				s.t.push(pOa[hitNS][i + ii - width].t * d);
 			}
 		});
-		
+
 		d = s.d.sum();
-		
+
 		return d ? (gb.r100(winChance / 100 * d / $u.setContent(pOa.att.tokens, 1)) * s.t.sum() / d + s.p.sum() / d) : 0;
 	};
-	
+
 	gb.otherCalc = function(fR, pOa, i, ns, metric) {
 		ignoreJSLintError(fR);
 		ns = ns.regex(/(?:normal|seal)?(normal|seal)/);
 		return metric * pOa[ns][i].t + pOa[ns][i].p;
 	};
-	
+
 	// Passed a general object, gets the general of that object if loadout, and then regexes the regular expression against it.
 	// Default value is 0.
 	gb.gs = function(gO, r) {
 		return parseFloat($u.setContent(general.getRecord(gO.general).special.regex(r), '0'));
 	};
-	
-	gb.enemy = { 
-		mage: [   
+
+	gb.enemy = {
+		mage: [
 			{name: 'fireball', tokens: 2, mageSplash: true, score: function(fR, pOa, i, ns, mR) {
 				return gb.damageCalc(fR, pOa, i, ns, mR.winChance, [0.25, 0.5, 1, 0.5, 0.25]);
 			}},
@@ -226,13 +241,13 @@ schedule,state,general,session,battle:true */
 				var wwDamage = 0.86 * (1 + gb.gs(pOa.gO, /([\d\.]+)% damage to each surrounding enemy with Whirlwind/) / 100),
 					confidence = pOa.gO.powers.hasIndexOf('confidence') ? 50 + gb.gs(pOa.gO, /([\d\.]+) Max Confidence Damage/) : 0,
 					baseBonus = stats.rune.damage * (fR.me.shout * 7 + confidence / 2) / 100 + fR.me.shout * 7 + confidence;
-					
+
 				return gb.damageCalc(fR, pOa, i, ns, mR.winChance, [wwDamage, 1,  wwDamage], baseBonus);
 			}},
 			{name: 'wduel', image: 'attack', score: function(fR, pOa, i, ns, mR) {
 				var confidence = pOa.gO.powers.hasIndexOf('confidence') ? 50 + gb.gs(pOa.gO, /([\d\.]+) Max Confidence Damage/) : 0,
 					baseBonus = stats.rune.damage * (fR.me.shout * 7 + confidence / 2) / 100 + fR.me.shout * 7 + confidence;
-					
+
 				return gb.damageCalc(fR, pOa, i, ns, mR.winChance, [1], baseBonus);
 			}}
 		],
@@ -336,6 +351,9 @@ schedule,state,general,session,battle:true */
 
 			switch (page) {
 			case 'index' :
+				if (config.getItem('DailySpin', false)) {
+					caap.checkDailySpin();
+				}
 				if (caap.clickUrl != 'index.php') {
 					break;
 				}
@@ -344,13 +362,13 @@ schedule,state,general,session,battle:true */
 				gb.setRecord(gb.onTop(gb.gb100));
 				gb.setRecord(gb.onTop(gb.gbClassic));
 				break;
-			
+
 			case 'guildv2_battle' :
 				caap.checkMyGuildIds();
 				text = $u.setContent($j('#app_body #guildv2_battle_middle').text().trim().innerTrim(), '');
-				
+
 				if (text.indexOf('submit the Guild for Auto-Matching') >= 0) {
-					fR.state = 'Start';	
+					fR.state = 'Start';
 				} else if (text.indexOf('Time Remaining') >= 0) {
 					fR.state = 'Active';
 				} else if (text.indexOf('Auto-Match in Progress') >= 0) {
@@ -362,28 +380,29 @@ schedule,state,general,session,battle:true */
 				}
 				fR.attacker_guild_id = $j('#app_body input[name*="attacker_guild_id"]').eq(0).attr('value');
 				fR.defender_guild_id = $j('#app_body input[name*="defender_guild_id"]').eq(0).attr('value');
+				fR.is_attacker = $j('#app_body input[name*="is_attacker"]').eq(0).attr('value');
 				fR.last = Date.now() - 2.5 * 60 * 1000;
 				fR.nextTopReview = Date.now();
 				break;
-				
+
 			case 'guild_battle' :
 			case 'hundred_battle_view' :
 			case 'ten_battle' :
 				fR = gb.onBattle(fR);
 				break;
-				
+
 			case 'tenxten_gb_formation' :
 				if (!caap.hasImage('fb_guild_btn_joinbattle_small.gif', $j('.team_content:visible')) && (fR.state == 'Active' || fR.state == 'Collect')) {
 					fR.state = 'No battle';
 				}
 				break;
-				
+
 			case 'hundred_battle' :
 				if (!caap.hasImage('sort_btn_joinbattle.gif') && (fR.state == 'Active' || fR.state == 'Collect')) {
 					fR.state = 'No battle';
 				}
 				break;
-				
+
 			default :
 				break;
 			}
@@ -396,17 +415,17 @@ schedule,state,general,session,battle:true */
             return false;
         }
     };
-	
+
 	gb.init = function() {
 		try {
 			if (!gb.getRecord('winLoss').newRecord) {
 				gb.deleteRecord('winLoss');
 			}
-			
+
 			gb100Dash.dashboard = $j.extend({}, gb.dashboard, {name: '100v100', gbLabel : 'gb100', inst: 'Display the current 100v100 Guild battle'});
 			gb10Dash.dashboard = $j.extend({}, gb.dashboard, {name: '10v10', gbLabel : 'gb10', inst: 'Display the current 10v10 Guild battle'});
 
-			gb.winLoss = {	
+			gb.winLoss = {
 				invade:		false,
 				lost:		'duelLost',
 				won:		'duelWon',
@@ -417,7 +436,7 @@ schedule,state,general,session,battle:true */
 					var str = caap.resultsText.replace(r.name, '').replace(stats.PlayerName.trim(), ''),
 						tStr = '',
 						fR = {};
-						
+
 					r.name = r.name.replace(/ \w+ PATH CREDIT: \w+/,'');
 					r.points = str.regexd(/\+([\d\.]+) Battle Activity Points/, 0);
 					r.action = str.regex(/(POLYMORPH|CONFUSE)/);
@@ -438,7 +457,7 @@ schedule,state,general,session,battle:true */
 								fR.att = ((stats.attack + stats.bonus.attack) * (tStr.numberOnly() / 100 + 1) + (stats.defense + stats.bonus.defense) * 0.7).dp(0);
 							}
 						}
-							
+
 						r.wl = r.wl == 'VICTORY' ? 'won' : 'lost';
 						r.att = (fR.att > 0 ? fR.att : stats.bonus.api) * (r.action == 'CONFUSE' ? 1.5 : 1) * (r.action == 'POLYMORPH' ? 1.25 : 1);
 						gb.setRecord(fR);
@@ -449,7 +468,7 @@ schedule,state,general,session,battle:true */
 				},
 				other: 'None'
 			};
-			
+
 			gb.actions = [];
 			['your','enemy'].forEach( function(which) {
 				$j.each(gb[which], function(gbclass) {
@@ -471,11 +490,11 @@ schedule,state,general,session,battle:true */
 				now = Date.now(),
 				infoDiv = $j("#app_body #newsFeedSection div[style*='news_topcontainer.jpg']").has("img[src$='achivement_tabicons_" + gf.infoDiv + ".gif']"),
 				text = infoDiv.text().trim();
-			
+
 			if ($u.hasContent(infoDiv) && (gf.name == '100v100' || gf.name == '10v10')) {
 				fR.battle_id = $j('a', infoDiv).attr('href').regexd(/\=([\d_]+)/, '');
 			}
-			
+
 			if (gf.name == 'Classic' && !$u.hasContent(text)) {
 				fR.state = fR.state == 'Auto-match' ? 'Auto-match' : 'Start';
 			} else if (text.regex(/next/i)) {
@@ -492,7 +511,7 @@ schedule,state,general,session,battle:true */
 			} else if (text.regex(/collect/i)) {
 				fR.state = 'Collect';
 				fR.nextTopReview = gf.name == 'Classic' ? fR.lastBattleTime + gf.waitHours * 3600 * 1000 : now + 3600 * 1000;
-				
+
 			} else {
 				con.warn(gf.name + ' Unknown message text', text);
 			}
@@ -507,12 +526,12 @@ schedule,state,general,session,battle:true */
             return false;
         }
     };
-	
+
     gb.onBattle = function(fR) {
         try {
             var gate = $j(),
 				args = [],
-				gf = gb[fR.label], 
+				gf = gb[fR.label],
                 tempDiv = $j("#globalContainer #guild_battle_banner_section"),
 				tower = 0,
 				which = '',
@@ -540,11 +559,11 @@ schedule,state,general,session,battle:true */
 			}
 
 			session.setItem('gbWhich', fR.label);
-			
+
 			battle.readWinLoss(caap.resultsText, gb.winLoss);
 
 			fR.nextTopReview = Math.max(now + 5 * 60 * 1000, fR.nextTopReview);
-			
+
 			fR.attacker_guild_id = $u.setContent(fR.attacker_guild_id, $j('#app_body input[name*="attacker_guild_id"]').eq(0).attr('value'));
 			fR.defender_guild_id = $u.setContent(fR.defender_guild_id, $j('#app_body input[name*="defender_guild_id"]').eq(0).attr('value'));
 
@@ -558,18 +577,18 @@ schedule,state,general,session,battle:true */
 				}
 				return fR;
 			}
-							
+
 			fR.state = 'Active';
-			
+
 			if (caap.hasImage(gf.enterButton)) {
 				fR.lastBattleTime = 0;
 				return fR;
 			}
-			
+
 			if (schedule.since(fR.lastBattleTime, gf.waitHours * 60 * 60)) {
 				con.log(1,'Resetting battle data');
 				tStr = fR.nextTopReview;
-				fR = new gb.record(fR.label).data;					
+				fR = new gb.record(fR.label).data;
 				fR.nextTopReview = tStr;
 				fR.battle_id = battle_id;
 			}
@@ -606,7 +625,7 @@ schedule,state,general,session,battle:true */
 
 			tempDiv = $j("#globalContainer span[id='guild_token_time_value']");
 			tStr = $u.hasContent(tempDiv) ? tempDiv.text().trim() : '';
-			
+
 			tempDiv = $j("#guild_battle_health");
 			if (tempDiv && tempDiv.length) {
 				['enemy', 'you'].forEach( function(e) {
@@ -628,7 +647,7 @@ schedule,state,general,session,battle:true */
 			} else {
 				con.warn("guild_battle_health error");
 			}
-			
+
 			gate = $j("div[id*='_guild_member_list_']");
 			tower = gate.attr('id').match(/_guild_member_list_(\d)/)[1];
 			which = gate.attr('id').match(/(\w+)_guild_member_list_(\d)/)[1];
@@ -647,7 +666,7 @@ schedule,state,general,session,battle:true */
 			} else {
 				fR.easy = (sealedTowers + (fR.your.health > fR.enemy.health + 20)) > 2 && !schedule.since(fR.endTime, -8 * 60 );
 			}
-			
+
 			if (!gate) {
 				con.warn("No gates found");
 			} else {
@@ -662,7 +681,7 @@ schedule,state,general,session,battle:true */
             return false;
         }
     };
-	
+
 	gb.readTower = function (fR, which, tower, gate, extra) {
 		try {
 			var lo = fR.label.hasIndexOf('lo'), // Match loe or lom lands
@@ -670,7 +689,7 @@ schedule,state,general,session,battle:true */
 				towerList = lo ? Object.keys(fR[which].towers) : fR.label == 'gb10' ? ['1'] : ['1','2','3','4'],
 				typeList = lo ? [which] : ['your','enemy'],
 				tR = new gb.towerRecord().data, // tower record
-				gf = gb[fR.label], 
+				gf = gb[fR.label],
 				mR = {}, // member record
 				towerType = '',
 				isMe = false,
@@ -685,7 +704,7 @@ schedule,state,general,session,battle:true */
 				pics = [],
 				picsList = [],
 				picsText = $j.makeArray(gate.find('img[src*="."], input[src*="."]').map(function() {
-					return $j(this).attr('src').regex(/(\w+\.\w+)$/); 
+					return $j(this).attr('src').regex(/(\w+\.\w+)$/);
 				})).join(' ') + ' w.w class_w.gif',
 				noSwap = !picsText.hasIndexOf('wall_move_icon.jpg'),
 				n = 0,
@@ -707,7 +726,7 @@ schedule,state,general,session,battle:true */
 				pOa = {}, // Link to the specific attack portion of pO
 				damage = 0,
 				idsOk = idList.length == argList.length || idList.length + 1 == argList.length;
-				
+
 			// Format the tower seal/normal
 			tR.last = Date.now();
 			fR[which].towers[tower] = tR;
@@ -722,7 +741,7 @@ schedule,state,general,session,battle:true */
 				return;
 			}
 
-			// Scan the data for each member for the tower 
+			// Scan the data for each member for the tower
 			argList.forEach( function(args, i) {
 				mR = new gb.member().data;
 				if (idsOk) {
@@ -752,7 +771,7 @@ schedule,state,general,session,battle:true */
 				tR.AC += (mR.battlePoints > 0 && mR.mclass == 'cleric') ? 1 : 0;
 				tR.healthNum += $u.isString(mR.healthNum) ? mR.healthNum.parseFloat() : mR.healthNum;
 				tR.healthMax += mR.healthMax;
-				mR.isMe = mR.target_id == stats.FBID ? true : 
+				mR.isMe = mR.target_id == stats.FBID ? true :
 					which == 'your' && mR.name == stats.PlayerName && (mR.level == stats.level || mR.level + 1 == stats.level);
 				fR.me.tower = mR.isMe ? tower : fR.me.tower;
 				if (mR.isMe && n + idList.length < argList.length) {
@@ -764,10 +783,10 @@ schedule,state,general,session,battle:true */
 				}
 				fR[which].members[tower + '-' + n] = mR;
 			});
-				
+
 			tR.damage = tR.healthMax - tR.healthNum;
 			tR.life = (tR.healthNum/tR.healthMax * 100).dp(1);
-			
+
 			// See if all towers have been scanned, and check which tower is the current seal tower
 			fR.firstScanDone = true;
 			fR[which].towers[tower] = tR;
@@ -775,7 +794,7 @@ schedule,state,general,session,battle:true */
 			typeList.forEach(function(fwhich) {
 				var maxDamage = 0,
 					maxTower = 0;
-					
+
 				towerList.forEach(function(fTower) {
 					tR = fR[fwhich].towers[fTower];
 					if ($u.isObject(tR)) {
@@ -789,15 +808,15 @@ schedule,state,general,session,battle:true */
 				});
 				fR[fwhich].seal = maxTower;
 			});
-			
+
 			tR = fR[which].towers[tower];
-			
+
 			// Cycle through all of the possible attacks
-			(lo ? ['mage','warrior','rogue','cleric'] : [fR.me.mclass]).forEach( function(mclass) { 
+			(lo ? ['mage','warrior','rogue','cleric'] : [fR.me.mclass]).forEach( function(mclass) {
 				gb[which][mclass].forEach(function(att) {
 					fullText = scoring.regex(new RegExp("\\b" + att.name + "(\\[.*?)\\]"));
 					img = $u.setContent(att.image, att.name);
-					
+
 					if (yourlo && !extra.listMatch(new RegExp('(' + img + ')'))) {
 						return;
 					}
@@ -808,9 +827,9 @@ schedule,state,general,session,battle:true */
 						(att.name == 'swap' && noSwap)) {
 						return;
 					}
-					
+
 					fR[which].attacks.addToList(att.name);
-					
+
 					// Define powers object to hold data for scoring
 					pO[att.name] = {healths: [0, 0], // Add padding to beginning for fireball/mass_heal
 						mRs : [],
@@ -821,22 +840,22 @@ schedule,state,general,session,battle:true */
 						splash: {},
 						splashMax: 0,
 						att : att};
-						
+
 					pOa = pO[att.name];
-					
+
 					pOa.wc = fullText.match(/\bwc\b/);
-					
+
 					// Cycle through all tower members to score the attacks, for both normal and seal
 					picsList.forEach( function(pics, i) {
 						mR = fR[which].members[tower + '-' + (i + 1)];
 
 						bR = battle.getRecord(mR.target_id);
 						bR.level = mR.level;
-						
+
 						fR.att = fR.att || stats.bonus.api;
 						mR.winChance = mR.poly ? 100 : battle.winChance(bR, (att.name == 'confuse' ? 1.5 : att.name == 'poly' ? 1.25 : 1) *
 							fR.att, pics.hasIndexOf('mage_effect_enrage.gif') || pics.hasIndexOf('cleric_effect_divine_favor.gif') ? 1.25 : 0);
-						
+
 						if (!(stats.guild.powers).regex(img)) {
 							return;
 						}
@@ -847,16 +866,16 @@ schedule,state,general,session,battle:true */
 						// First number is for multipliers, second is added
 						normal = { t: 1, p: 0}; // t is for times, p is for plus
 						sealCheck = false;
-						
+
 						// Cycle through the modifiers for the attack
 						$u.setContent(fullText.match(/(!?\w+:\D?[^,]+)/g),[]).forEach( function(text) {
 							var key = text.replace(/:.*/,'').replace('!','').toLowerCase(),
 								tf = false;
 							switch (key) {
 								case 'big' :		tf = mR.target_id == big.target_id;									break;
-								case 'out' :		tf = fR.me.mclass == 'cleric' && fR.your.seal == tower && 
+								case 'out' :		tf = fR.me.mclass == 'cleric' && fR.your.seal == tower &&
 														fR.your.towers[tower].life < 66;								break;
-								case 'in' :		tf = fR.me.mclass != 'cleric' && fR.your.seal == fR.me.tower && 
+								case 'in' :		tf = fR.me.mclass != 'cleric' && fR.your.seal == fR.me.tower &&
 														fR.your.towers[fR.me.tower].life < 66;							break;
 								case 'base' :		tf = true;															break;
 								case 'cleric' :
@@ -875,10 +894,10 @@ schedule,state,general,session,battle:true */
 								case 'assault' :
 								case 'church' :
 								case 'arcane' :
-								case 'barricade' :	
-								case 'elemental' :	
-								case 'null' :	
-								case 'gate' :	
+								case 'barricade' :
+								case 'elemental' :
+								case 'null' :
+								case 'gate' :
 								case 'sewer' :		tf = towerType == key;												break;
 								case 'poly' :		tf = pics.hasIndexOf('polymorph_effect.gif');						break;
 								case 'poison' :		tf = pics.hasIndexOf('rogue_effect_poison.gif');					break;
@@ -894,13 +913,13 @@ schedule,state,general,session,battle:true */
 								case 'attack' :		tf = pics.hasIndexOf('targetting_attack.png');						break;
 								case 'avoid' :		tf = pics.hasIndexOf('targetting_avoid.png');						break;
 								case 'defend' :		tf = pics.hasIndexOf('targetting_defend.png');						break;
-								case 'healFlag' :	tf = pics.hasIndexOf('targetting_heal.png');						break;
+								case 'healflag' :	tf = pics.hasIndexOf('targetting_heal.png');						break;
 								case 'me' :			tf = isMe;															break;
 								case 'active' :		tf = mR.battlePoints;												break;
 								case 'bs' :			tf = mR.healthNum == mR.healthMax;									break;
 								case 'healed' :		tf = mR.healthMax - mR.healthNum < 300;								break;
-								case '100v100' :	
-								case 'classic' :	
+								case '100v100' :
+								case 'classic' :
 								case '10v10' :		tf = gf.name.toLowerCase() == key;									break;
 								case 'easy' :		tf = fR.easy;														break;
 								case 'easyc' :		tf = fR.easy && mR.mclass == 'cleric';								break;
@@ -910,8 +929,8 @@ schedule,state,general,session,battle:true */
 								case 'meshout' :	tf = fR.me.shout;													break;
 								case 'afflicted' :
 								tf = pics.hasIndexOf('polymorph_effect.gif') || pics.hasIndexOf('rogue_effect_poison.gif') || pics.hasIndexOf('mage_effect_confuse.gif');	break;
-								case 'p160' :		
-								case 'p200' :		
+								case 'p160' :
+								case 'p200' :
 								case 'p240' :		tf = mR.points == key.numberOnly();									break;
 								case 'wlp160' :
 								case 'wlp200' :
@@ -921,7 +940,15 @@ schedule,state,general,session,battle:true */
 									sealCheck = true;
 									seal = {t: normal.t, p: normal.p};
 									break;
-								default :			
+								case 'dead' : tf = (fR.me.percent.dp(2) < (1).dp(2));							break;
+								case 'midtime' :
+									if ($u.isNumber(fR.endTime)) {
+										var now = Date.now(),
+											beginTime = fR.endTime - gb.msecDuringBattle(fR.label);
+										tf = (beginTime > 0 && fR.endTime > 0 && ((fR.endTime - beginTime) < 2*(now - beginTime)));
+									}
+									break;
+								default :
 									if (!(/\d+/).test(key)) {
 										con.log(1, 'Unknown guild battle modifier: ' + key, fullText, att);
 									}
@@ -929,10 +956,9 @@ schedule,state,general,session,battle:true */
 							}
 
 							args = text.match(new RegExp('(!?)' + key + ':(\\*?)(-?)([\\.\\d]+)'));
-							
-							notArg = (args[1] == '!');
-							tf = tf == true;
-							if (args && args.length == 5 && tf !== notArg) { 
+							notArg = ((args && args.length)?(args[1] == '!'):false);
+							tf = (tf == true);
+							if (args && args.length == 5 && tf !== notArg) {
 								normal[args[2] == '*' ? 't' : 'p'] += args[3] == '-' ? -args[4].parseFloat() : args[4].parseFloat();
 							}
 							if (sealCheck === true) {
@@ -940,6 +966,11 @@ schedule,state,general,session,battle:true */
 								seal = {t: normal.t - seal.t, p: normal.p - seal.p};
 								normal = { t: normal.t - seal.t, p: normal.p - seal.p};
 							}
+							/*if (att.name == 'cduel' || att.name == 'divine_favor') {
+								if (key == 'midtime') {
+									con.log(1, key+': '+att.name+' (args, tf, seal, normal, notArg, mR): ', args, tf, seal, normal, notArg, mR);
+								}
+							}*/
 						});
 
 						// Fill out the powers object for scoring in the next cycle
@@ -950,7 +981,7 @@ schedule,state,general,session,battle:true */
 						['normal','seal'].forEach(function(ns) {
 							pOa[ns].push(ns == sealCheck ? { t: normal.t + seal.t, p: normal.p + seal.p} : { t: normal.t, p: normal.p});
 						});
-						
+
 						// Base is the same for all attacks on a given enemy. Placed here to make sure has same index as other pOa items
 						var poison =  pics.hasIndexOf('rogue_effect_poison.gif'),
 							guardian = pics.hasIndexOf('warrior_ability_sentinel.gif'),
@@ -963,7 +994,7 @@ schedule,state,general,session,battle:true */
 								bonus + fR.me.shout * 9 + poison * 35 - guardian * 215).dp() : 0).dp();
 
 					}); // End of members loops for scoring
-					
+
 					// Add padding of zeros on either side of the healths array for fireball/mass heals
 					pOa.healths = pOa.healths.concat([0, 0]);
 
@@ -986,7 +1017,7 @@ schedule,state,general,session,battle:true */
 						['normal','seal'].forEach(function(ns) {
 							pOa.splash[ns] = {p: [], t: [], d: []};
 							pOa.healths.forEach( function(h, i) {
-								damage = Math.min(h, pOa.splashMax.dp()); 
+								damage = Math.min(h, pOa.splashMax.dp());
 								if (damage) {
 									pOa.splash[ns].p.push(damage * pOa[ns][i - 2].p);
 									pOa.splash[ns].t.push(damage * pOa[ns][i - 2].t);
@@ -1001,24 +1032,24 @@ schedule,state,general,session,battle:true */
 						if (att.healSplash) {
 							fR.healSplash[att.name] = pOa.splash;
 						}
-						
+
 					}
 					if (att.healSplash && which == 'your') {
 						fR[which].attacks.removeFromList(att.name);
 						delete pO[att.name];
 					}
-					
+
 				}); // End of attacks loop
-				
+
 			}); // End of classes loop
-					
+
 			// Third cycle, to calculate final score based on weighted average of all targets hit by an attack for a composite score.
 			//  Picslist used as convenient index
-			
+
 			$j.each(pO, function(attName, pOa) {
 				pOa.mRs.forEach( function(mR, i) {
 					mR.scores[attName] = {};
-						
+
 					nsList.forEach(function(ns) {
 						if (!pOa.att.healSplash && ['sealnormal','normalseal'].hasIndexOf(ns)) {
 							sOrN =  tower == fR[which].seal && ns == 'normalseal' ? 'sealseal' : 'normalnormal';
@@ -1037,7 +1068,7 @@ schedule,state,general,session,battle:true */
 					});
 				}); // End of pOa loop
 			}); // End of pO loop
-			
+
 			pO = null;
 			pOa = null;
 
@@ -1055,23 +1086,23 @@ schedule,state,general,session,battle:true */
             return false;
         }
     };
-	
+
 	gb.r100 = function(n) {
 		return Math.atan(n/1000)/Math.PI*2*100;
 	};
-	
+
 	gb.worker = function () {
         try {
 			var fR = {},
 				result = false,
 				order = ['gb100', 'gb10', 'gbClassic', 'gb100', 'gb10'],
 				configSet = false;
-			
+
 			stats.battleIdle = 'Use Current';
 			['gb100', 'gb10', 'gbClassic'].forEach( function(label) {
 				var gbName = gb[label].name;
 				fR = gb.getRecord(label);
-				if (config.getItem(gbName + '_ClassGeneral','Use Current') != 'Use Current' && 
+				if (config.getItem(gbName + '_ClassGeneral','Use Current') != 'Use Current' &&
 					((schedule.since(fR.startTime, -11 * 60) && !schedule.since(fR.startTime, -1 * 60))
 						|| fR.state == 'Auto-match')) {
 					stats.priorityGeneral = config.getItem(gbName + '_ClassGeneral','Use Current');
@@ -1079,7 +1110,7 @@ schedule,state,general,session,battle:true */
 				}
 				stats.battleIdle = fR.state == 'Active' ? config.getItem('GB_IdleGeneral','Use Current') : 'Use Current';
 			});
-			
+
 			if (result) {
 				caap.passThrough({mess: 'Setting Class General'}, result);
 				if (general.selectSpecific(stats.priorityGeneral)) {
@@ -1091,7 +1122,7 @@ schedule,state,general,session,battle:true */
 				configSet =  config.getItem(label + 'whenTokens') != 'Never' ||
 					config.getItem(gb[label].name + '_ClassGeneral', 'Use Current') != 'Use Current' ||
 					config.getItem(label + 'collect', false);
-					
+
 				if (configSet) {
 					fR = gb.getRecord(label);
 					result = caap.passThrough(gb.workCommon(fR), gb[label].name.toLowerCase());
@@ -1118,10 +1149,10 @@ schedule,state,general,session,battle:true */
 				result = '',
 				priority = schedule.since(fR.endTime, -8 * 60 ) || fR.your.health < 10,
 				stun = fR.me.healthNum <= gf.minHealth ? 'stunned' : 'unstunned',
-				wait = stun == 'stunned' || fR.me.poly || 
+				wait = stun == 'stunned' || fR.me.poly ||
 					(fR.me.confuse && fR.your.attacks.indexOf('cleanse') < 0 && fR.your.attacks.indexOf('dispel') < 0),
 				tokenMax = wait ? 8 : config.getItem(gf.label + 'max', 10),
-				burn = fR.tokens <= (wait ?  tokenMax - 2 : config.getItem(gf.label + 'min', 0)) 
+				burn = fR.tokens <= (wait ?  tokenMax - 2 : config.getItem(gf.label + 'min', 0))
 					? false :  fR.burn || fR.tokens >= tokenMax,
 				useTokens = priority || burn,
 				doAttack = fR.state == 'Active' && useTokens && fR.tokens,
@@ -1129,9 +1160,9 @@ schedule,state,general,session,battle:true */
 				towers = gf.name == '10v10' ? ['1'] : ['1','2','3','4'],
 				t = { score: 0, tokens: 1 },
 				message = schedule.since(fR.collectedTime, gf.waitHours * 60 * 60) ? 'Uncollected, ' : 'Collected, ';
-				
+
 			fR.burn = burn;
-			
+
 			switch (fR.state) {
 			case 'Collect' :
 				if (message.hasIndexOf('Uncollected') && config.getItem(gf.label + 'collect',false) && !(caap.gameDay(-2 * 60) == 'Mon' &&
@@ -1140,31 +1171,31 @@ schedule,state,general,session,battle:true */
 					return {mlog: 'Collecting'};
 				}
 				break;
-				
+
 			case 'No battle' :
 				break;
-				
+
 			case 'Check ID' :
 				page.ajax(gf.name == 'Classic' ? 'guildv2_battle' : 'index');
 				return {mlog: 'Checking index page battle status'};
-				
+
 			case 'Start' :  // Only true for Classic battles
 				if (gb.checkTimes()) {
 					return {mlog: 'Clicking button for auto-match'};
-				} 
+				}
 				if (config.getItem('Classic_ClassGeneral', 'Use Current') != 'Use Current' && schedule.since(fR.nextTopReview, 5 * 60)) {
 					page.ajax('guildv2_battle');
 					return {mlog:'Checking for auto-match to set general'};
 				}
 				message += 'ready to start next battle, ';
 				break;
-				
+
 			case 'Auto-match' :
 				message += 'auto-match button pushed, ';
 				break;
-				
+
 			case 'Active' :
-				message = schedule.since(fR.lastBattleTime, gf.waitHours * 60 * 60) ? 'Not entered, ' 
+				message = schedule.since(fR.lastBattleTime, gf.waitHours * 60 * 60) ? 'Not entered, '
 					: fR.tokens + '/10 ' + fR.me.status + ', ';
 				if (gf.name != 'Classic' && state.getItem('GB_Active', false) && !priority) {
 					return {action: false, mess: message + 'waiting on Classic'};
@@ -1181,9 +1212,9 @@ schedule,state,general,session,battle:true */
 						towers.some(function(tower) {
 							var tR = $j.extend(new gb.towerRecord().data, fR[which].towers[tower]),
 								filter = which != 'enemy' || tower != '1';
-								
+
 							fR[which].towers[tower] = tR;
-								
+
 							if (schedule.since(tR.last, 5 * 60) && (!fR.firstScanDone || !filter || doAttack)) {
 								if (stats.priorityGeneral == 'Use Current' && general.Select(stats.battleIdle)) {
 									result = {mlog: fR.tokens + '/10, setting idle general'};
@@ -1216,11 +1247,11 @@ schedule,state,general,session,battle:true */
 			if (stats.priorityGeneral != 'Use Current') {
 				return {action: false, mess: 'Waiting on priority general: ' + stats.priorityGeneral};
 			}
-			
+
 			if (neverTokens) {
 				return false;
 			}
-			
+
 			if (doAttack) {
 				teams.forEach(function(which) {
 					towers.forEach(function(tower) {
@@ -1234,23 +1265,23 @@ schedule,state,general,session,battle:true */
 						}
 					});
 				});
-				
+
 				fR.t = t;
 				if (!t.score) {
 					return {action: false, mess: message + 'no valid target'};
 				}
-				
+
 				if (!general.hasRecord(t.general.replace('@',''))) {
 					t.general = 'Use Current';
 				}
-				
-				result = caap.navigate2(t.general + ',ajax:' + gb.path(fR, '', t.which, t.tower) + ',clickjq:.action_panel_' 
+
+				result = caap.navigate2(t.general + ',ajax:' + gb.path(fR, '', t.which, t.tower) + ',clickjq:.action_panel_'
 					+ t.id + ' input[src*="' + t.attack + '.jpg"]');
 				if (result == 'fail') {
 					page.ajax('player_loadouts.php?loadout=' + general.getRecordVal(general.loadout, 'value') + '&selection=4');
 					return {mlog: message + t.attack + ' failed on ' + t.which + ' T' + t.tower + ' ' + t.name
 						+ ' Checking ' + general.loadout + ' has ' + t.attack};
-				} 
+				}
 				if (result == 'done') {
 					battle.setRecordVal(t.id, 'level', t.level);
 					state.setItem('lastBattleID', t.id);
@@ -1259,7 +1290,7 @@ schedule,state,general,session,battle:true */
 				return {mlog: message + t.attack + ' on ' + t.which + ' T' + t.tower + ' ' + t.name};
 			}
 			return {action: false, mess: message + 'waiting for ' + tokenMax + ' tokens'};
-			
+
         } catch (err) {
             con.error("ERROR in gb.work:" + err.stack);
             return false;
@@ -1268,50 +1299,51 @@ schedule,state,general,session,battle:true */
 
 	// guild battle path -- provides the path to the top page of the guild battle
 	gb.path = function(fR, suffix, which, tower) {
-        try {
-			if (!$u.isObject(fR)) {
-				con.warn('Invalid gb.path input', which, tower);
-				return false;
-			}
-			var gf = gb[fR.label],
-				path = $u.isDefined(suffix) ? gf.actionUrl : gf.towerUrl;
-				
-			if (gf.label == 'loe') {
-				return gf.topUrl + $u.setContent($u.setContent(tower,'').regex(/(\w+):\d/), which) + '&slot=0';
-			}
-			if (gf.label == 'lom') {
-				return 'ajax:guildv2_conquest_expansion.php?guild_id=' + stats.guild.id + '&slot=' + (tower.numberOnly() + 1);
-			}
-			
-			path = path.replace('battle_id=', 'battle_id=' + fR.battle_id);
-			path = path.replace('attacker_guild_id=', 'attacker_guild_id=' + fR.attacker_guild_id);
-			path = path.replace('defender_guild_id=', 'defender_guild_id=' + fR.defender_guild_id);
-			
-			if (path.hasIndexOf('battle_id=&')) {
-				return 'index';
-			}
-			if (path.hasIndexOf('attacker_guild_id=&') || path.hasIndexOf('attacker_guild_id=null&')) {
-				return gf.name == 'Classic' ? 'guildv2_battle' : gf.towerUrl.replace('battle_id=', 'battle_id=' + fR.battle_id);
-			}
-			if (path.hasIndexOf('defender_guild_id=&')) {
-				return 'keep';
-			}
+      try {
+  			if (!$u.isObject(fR)) {
+  				con.warn('Invalid gb.path input', which, tower);
+  				return false;
+  			}
+  			var gf = gb[fR.label],
+  				path = $u.isDefined(suffix) ? gf.actionUrl : gf.towerUrl;
 
-			if ($u.isDefined(which)) {
-				if (which == 'your') {
-					path += '&view_allies=true';
-				}
-				if ('1234'.hasIndexOf(tower.toString())) {
-					path += '&sel_pos=' + tower;
-				}
-			}
-			return path + $u.setContent(suffix, '');
-        } catch (err) {
-            con.error("ERROR in gb.path: " + err.stack);
-            return false;
-        }
+  			if (gf.label == 'loe') {
+  				return gf.topUrl + $u.setContent($u.setContent(tower,'').regex(/(\w+):\d/), which) + '&slot=0';
+  			}
+  			if (gf.label == 'lom') {
+  				return 'ajax:guildv2_conquest_expansion.php?guild_id=' + stats.guild.id + '&slot=' + (tower.numberOnly() + 1);
+  			}
+
+  			path = path.replace('battle_id=', 'battle_id=' + fR.battle_id);
+  			path = path.replace('attacker_guild_id=', 'attacker_guild_id=' + fR.attacker_guild_id);
+  			path = path.replace('defender_guild_id=', 'defender_guild_id=' + fR.defender_guild_id);
+  			path = path.replace('is_attacker=', 'is_attacker=' + fR.defender_guild_id);
+
+  			if (path.hasIndexOf('battle_id=&')) {
+  				return 'index';
+  			}
+  			if (path.hasIndexOf('attacker_guild_id=&') || path.hasIndexOf('attacker_guild_id=null&')) {
+  				return gf.name == 'Classic' ? 'guildv2_battle' : gf.towerUrl.replace('battle_id=', 'battle_id=' + fR.battle_id);
+  			}
+  			if (path.hasIndexOf('defender_guild_id=&')) {
+  				return 'keep';
+  			}
+
+  			if ($u.isDefined(which)) {
+  				if (which == 'your') {
+  					path += '&view_allies=true';
+  				}
+  				if ('1234'.hasIndexOf(tower.toString())) {
+  					path += '&sel_pos=' + tower;
+  				}
+  			}
+  			return path + $u.setContent(suffix, '');
+      } catch (err) {
+          con.error("ERROR in gb.path: " + err.stack);
+          return false;
+      }
     };
-	
+
     gb.target = function(t, total, mR, pOa, which, tower) { //t, total, mR, attack, general, team, tower, tokens
         try {
 			if (total > t.score) {
@@ -1332,7 +1364,7 @@ schedule,state,general,session,battle:true */
             return false;
         }
     };
-	
+
     gb.checkTimes = function() {
         try {
 			var begin = new Date(),
@@ -1342,7 +1374,7 @@ schedule,state,general,session,battle:true */
 				timedSetting = config.getItem('WhenGuildBattle', ''),
 				match = (timedSetting === 'Battle available') ? true : false,
 				now = new Date();
-				
+
 			if (timedSetting=='Never') {
 				return false;
 			}
@@ -1363,13 +1395,13 @@ schedule,state,general,session,battle:true */
 						return true;
 					}
 				});
-						
+
 				if (!begin) {
 					con.log(4, 'No day of week match', now.getDay(), timeString);
 					return false;
 				}
 				con.log(4,'begin ' + $u.makeTime(begin, caap.timeStr(true)) + ' end ' + $u.makeTime(end, caap.timeStr(true)) + ' time ' + $u.makeTime(now, caap.timeStr(true)), begin, end, now);
-				
+
 				if (begin < now && now < end) {
 					match = true;
 					con.log(4, 'Valid time for begin ' + $u.makeTime(begin, caap.timeStr(true)) + ' end ' + $u.makeTime(end, caap.timeStr(true)) + ' time ' + $u.makeTime(now, caap.timeStr(true)), begin, end, now, timeString);
@@ -1417,10 +1449,12 @@ schedule,state,general,session,battle:true */
 				htmlCode += caap.display.end(gf.label + 'whenTokens', 'is', 'Between Max Min');
 				htmlCode += caap.display.end(gf.label + 'whenTokens', 'isnot', 'Never');
 				htmlCode += caap.makeCheckTR(gf.name + " Auto-collect", gf.label + 'collect', false, 'Auto-collect when these battles finish');
+				htmlCode += caap.makeTD(gf.name + " Rate targets by: <a href='http://caaplayer.freeforums.org/viewtopic.php?f=9&t=830' target='_blank' style='color: blue'>(INFO)</a>");
+				htmlCode += caap.makeTextBox(gf.label + 'scoring', guild_battle_scoring_inst, config.getItem('guild_battle_scoring','cduel[],mduel[],wduel[],rduel[]'), '');
 			});
 
-            htmlCode += caap.makeTD("Rate targets by: <a href='http://caaplayer.freeforums.org/viewtopic.php?f=9&t=830' target='_blank' style='color: blue'>(INFO)</a>");
-            htmlCode += caap.makeTextBox('guild_battle_scoring', guild_battle_scoring_inst, 'cduel[],mduel[],wduel[],rduel[]', '');
+            /*htmlCode += caap.makeTD("Rate targets by: <a href='http://caaplayer.freeforums.org/viewtopic.php?f=9&t=830' target='_blank' style='color: blue'>(INFO)</a>");
+            htmlCode += caap.makeTextBox('guild_battle_scoring', guild_battle_scoring_inst, 'cduel[],mduel[],wduel[],rduel[]', '');*/
             htmlCode += caap.makeDropDownTR("Start Guild Battles when", 'WhenGuildBattle', gbattleList, gbattleInst, '', 'Never', false, false, 62);
             htmlCode += caap.display.start('WhenGuildBattle', 'is', 'At fixed times');
             htmlCode += caap.makeTD("Start Guild Battles at these times:");
@@ -1456,7 +1490,7 @@ schedule,state,general,session,battle:true */
 		headerF: function(fR) {
 			var which = config.getItem('gbDashWhich', 'enemy'),
 				towerHtml = '';
-				
+
 			['1','2','3','4'].forEach( function(p) {
 				var tower = fR[which].towers[p];
 				if (!tower) {
@@ -1469,7 +1503,7 @@ schedule,state,general,session,battle:true */
 		tableEntriesF: function(fR) {
 			var which = config.getItem('gbDashWhich', 'enemy'),
 				actions = fR[which].attacks.map( function(a) {
-					return {name: a, 
+					return {name: a,
 						colorF: function(r) {
 							return $u.hasContent(fR.t) && $u.hasContent(fR.t.id) && r.target_id == fR.t.id ? 'green' : 'black';
 						},
@@ -1507,7 +1541,7 @@ schedule,state,general,session,battle:true */
 			{name: 'Win Chance', value: 'winChance'}
 		]
 	};
-	
+
 	worker.add({ name: 'gb100Dash'}); // Details of dash added in gb.init
 	worker.add({ name: 'gb10Dash'}); // Details of dash added in gb.init
 

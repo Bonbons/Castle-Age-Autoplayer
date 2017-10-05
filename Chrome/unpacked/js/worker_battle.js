@@ -220,10 +220,10 @@ schedule,gifting,state,army, general,session,monster,guild_monster */
 					kinds:		'conqKinds',
 					when: 		'WhenConquest',
 					maxChain: 	'ConquestMaxChains',
-					minRank: 	'ConquestMinRank',
-					maxRank: 	'ConquestMaxRank',
-					minLevel: 	'ConquestMinLevel',
-					maxLevel: 	'ConquestMaxLevel',
+					minRank: 	'conquestMinRank',
+					maxRank: 	'conquestMaxRank',
+					minLevel: 	'conquestMinLevel',
+					maxLevel: 	'conquestMaxLevel',
 					valid:		'conqValid',
 					reconDelay:	'conqReconDelay',
 					battleDelay:'conqBattleDelay',
@@ -293,13 +293,16 @@ schedule,gifting,state,army, general,session,monster,guild_monster */
 		var	w = battle[which],
 				 // Play loose if reconning for demis
 				loose = battle.demisPointsToDo('left') && !['Festival', 'War'].hasIndexOf(config.getItem('battleWhich', 'Invade')),
-				minRank = loose ? 0 : battle.minMaxF(w, 'minRank'),
-				maxRank = battle.minMaxF(w, 'maxRank'),
-				minLevel = loose ? 0 : battle.minMaxF(w, 'minLevel'),
-				maxLevel = battle.minMaxF(w, 'maxLevel'),
+				minRank = loose ? 0 : battle.minMaxF(w, 'MinRank'),
+				maxRank = battle.minMaxF(w, 'MaxRank'),
+				minLevel = loose ? 0 : battle.minMaxF(w, 'MinLevel'),
+				maxLevel = battle.minMaxF(w, 'MaxLevel'),
 				conqLevel = w.conq ? config.getItem('conquestLevels', 'Any').regexd(/(\d+)/, 0) : 0;
-			
 		return arr.filter( function(r) {
+			// Never hit my guild mates
+			if (stats.guild.ids.indexOf(r.userId)>=0) {
+				return false;
+			}
 			return r[w.rank] >= minRank && r[w.rank] <= maxRank && !r[w.lost] && r.level <= maxLevel && r.level >= minLevel &&
 				(!w.invade || r.army > 0) && (!w.conq || r.level >= conqLevel);
 		});
@@ -307,6 +310,7 @@ schedule,gifting,state,army, general,session,monster,guild_monster */
 	
 	// Calculate an a score based on level, army size, and previous experience for a battle record to pick the best target
 	battle.scoring = function(r, which) {
+		
 		var w = battle[which],
 			defBonus = which == 'War' ? 'War' : w.invade ? r.army / stats.army.capped : 1,
 			mult = battle.demisPointsToDo('left') ? 1 : battle.pointF(w.pointList, r[w.rank] - stats.rank[w.myRank]); 
@@ -316,9 +320,9 @@ schedule,gifting,state,army, general,session,monster,guild_monster */
 	
 	// Calculate min or max rank or level to fight based on config menu setting
 	battle.minMaxF = function(w, minMax) {
-		var conf = $u.setContent(config.getItem(w[minMax], ''), minMax.match(/max/i) ? '100000' : '0'),
-			me = minMax.match(/rank/i) ? stats.rank[w.myRank] : stats.level;	
-		return conf.toString().match(/[\+\-]/) ? me + Number(conf) : conf;
+		var conf = $u.setContent(config.getItem(w.myRank+minMax, ''), minMax.match(/max/i) ? '100000' : '0'),
+			me = minMax.match(/rank/i) ? stats.rank[w.myRank] : stats.level;
+		return conf.toString().match(/[\+\-]/) ? me + Number(conf) : (conf.toString().match(/[%]/) ? Math.round(me*parseFloat(conf)/100) : conf);
 	};
 	
 	battle.init = function() {
@@ -405,10 +409,10 @@ schedule,gifting,state,army, general,session,monster,guild_monster */
 			schedule.setItem(w.reconDelay, 0);
 			battle.readWinLoss(resultsText, w);
 			
-			minRank = battle.minMaxF(w, 'minRank');
-			maxRank = battle.minMaxF(w, 'maxRank');
-			minLevel = battle.minMaxF(w, 'minLevel');
-			maxLevel = battle.minMaxF(w, 'maxLevel');
+			minRank = battle.minMaxF(w, 'MinRank');
+			maxRank = battle.minMaxF(w, 'MaxRank');
+			minLevel = battle.minMaxF(w, 'MinLevel');
+			maxLevel = battle.minMaxF(w, 'MaxLevel');
 
 			(w.midJQ ? $j(w.midJQ) : $j('#app_body div[style*="' + w.mid + '"]')).each( function() {
 				userId = $j("input[name='target_id']", this).attr('value');
@@ -792,11 +796,6 @@ schedule,gifting,state,army, general,session,monster,guild_monster */
 	
 	// Calculate the chance of winning
     battle.winChance = function(bR, att, defBonus) {
-    	
-		// Never hit my guild mates
-		if (stats.guild.ids.indexOf(bR.userId)>=0) {
-			return 0;
-		}
 		
 		if (defBonus == 'War') {
 			if (bR.warLost) {
@@ -865,18 +864,22 @@ schedule,gifting,state,army, general,session,monster,guild_monster */
                 maxChainInstructions = "Maximum number of chain hits after the initial attack.",
                 minRankInst = "The lowest rank that you are willing to spend your stamina on. " +
 					"Use +/- to indicate relative rank, e.g. -2 to attack opponents down to two ranks below your rank. " +
+					"Use % to indicate relative rank, e.g. 50% to attack opponents with half your rank. " +
 					"If no +/-, the number is an absolute rank, e.g. 19 would mean do not attack below rank Prince (19). " +
 					"Leave blank to attack any rank. (Uses Battle Rank for invade and duel, War Rank for wars.)",
                 maxRankInst = "The highest rank that you are willing to spend your stamina on. " +
 					"Use +/- to indicate relative rank, e.g. +2 to attack opponents up to two ranks over your rank. " +
+					"Use % to indicate relative rank, e.g. 200% to attack opponents with twice your rank. " +
 					"If no +/-, the number is an absolute rank, e.g. 19 would mean do not attack above rank Prince (19). " +
 					"Leave blank to attack any rank. (Uses Battle Rank for invade and duel, War Rank for wars.)",
                 minLevelInst = "The lowest level that you are willing to spend your stamina on. " +
 					"Use +/- to indicate relative level, e.g. -200 to attack opponents down to 200 levels below your level. " +
+					"Use % to indicate relative level, e.g. 50% to attack opponents with half your level. " +
 					"If no +/-, the number is an absolute level, e.g. 190 would mean do not attack below level 190. " +
 					"Leave blank to attack any level.",
                 maxLevelInst = "The highest level that you are willing to spend your stamina on. " +
 					"Use +/- to indicate relative level, e.g. +200 to attack opponents up to 200 levels over your level. " +
+					"Use % to indicate relative level, e.g. 200% to attack opponents with twice your level. " +
 					"If no +/-, the number is an absolute level, e.g. 190 would mean do not attack above level 190. " +
 					"Leave blank to attack any level.",
                 plusonekillsInstructions = "Delay 20 seconds between hits to get +1 kills. Takes more time.",

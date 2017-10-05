@@ -121,7 +121,7 @@ schedule,gifting,state,army,stats,general,session,monster,guild_monster */
             con.log(1, "Using offline items");
             spreadsheet.records = offline.items;
             spreadsheet.save();
-            con.error("2:ERROR in spreadsheet.load: " + err);
+            con.warn("2:ERROR in spreadsheet.load: " + err);
             return false;
         }
     };

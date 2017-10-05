@@ -13,7 +13,7 @@ regexp: true, eqeq: true, newcap: true, forin: false */
     "use strict";
 
 	worker.add({ name: 'gift', recordIndex: 'userId'});
-	
+
     gift.record = function () {
         this.data ={
 			'userId'	: 0,
@@ -37,7 +37,7 @@ regexp: true, eqeq: true, newcap: true, forin: false */
 					gift.setRecord(gift.sentObj);
 				}
 				state.setItem('giftsAvail', invites);
-						
+
 				break;
 			default:
 				break;
@@ -59,14 +59,14 @@ regexp: true, eqeq: true, newcap: true, forin: false */
             return false;
         }
     };
-	
+
 	gift.worker = function () {
         try {
 			var giftCodes = config.getItem('giftCodes', '').regex(/([\d:]+)/g),
 				num = 0,
 				options = 0,
 				result;
-			
+
 			if (!giftCodes) {
 				return {action: false, mess: ''};
 			}
@@ -88,13 +88,13 @@ regexp: true, eqeq: true, newcap: true, forin: false */
 				return {mlog: 'Sent gift ' + num + ' to FB ID ' +  gift.sentObj.userId};
 			}
 			return {action: false, mess: 'Gifts sent to all recipients within half an hour'};
-			
+
         } catch (err) {
             con.error("ERROR in gift.add: " + err.stack);
             return false;
         }
     };
-	
+
     gift.menu = function () {
         try {
             var acceptInst = 'Accept all gifts hourly.',

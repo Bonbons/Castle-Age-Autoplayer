@@ -337,6 +337,8 @@ gm,hiddenVar,battle,general */
     statsFunc.checkResults = function (page) {
         try {
 			switch (page) {
+			case 'index' :
+				caap.checkDailySpin();
 			case 'keep' :
 				var tempDiv = $j(),
 					achDiv = $j(),
@@ -355,7 +357,7 @@ gm,hiddenVar,battle,general */
 					if ($u.hasContent(tempDiv)) {
 						con.log(2, "On another player's keep", $u.setContent($u.setContent(tempDiv.attr("href"), '').basename().regex(/(\d+)/), 0));
 					} else {
-						con.error("Error: standard text not found and not another player's keep", text);
+						con.warn("Warning: standard text not found and not another player's keep", text);
 					}
 					break;
 				}
@@ -907,6 +909,7 @@ gm,hiddenVar,battle,general */
     statsFunc.menu = function () {
         try {
             var autoArchivesInstructions = "Enable or disable the auto archive bonuses",
+                autoDailySpinInstructions = "Enable or disable the auto daily spin",
                 statusInstructions = "Automatically increase attributes when upgrade skill points are available.",
                 statusAdvInstructions = "USE WITH CAUTION: You can use numbers or " +
                     "formulas(ie. level * 2 + 10). Variable keywords include energy, " +
@@ -931,6 +934,7 @@ gm,hiddenVar,battle,general */
 
             htmlCode += caap.startToggle('Stats', 'STATS');
             htmlCode += caap.makeCheckTR('Item Archives', 'AutoArchives', false, autoArchivesInstructions);
+            htmlCode += caap.makeCheckTR('Daily Spin', 'DailySpin', false, autoDailySpinInstructions);
             htmlCode += caap.makeDropDownTR("Demi Blessings", 'AutoBless', autoBlessList, autoBlessListInstructions, '', '', false, false, 62);
             htmlCode += caap.makeCheckTR("Upgrade Points", 'AutoStat', false, statusInstructions);
             htmlCode += caap.display.start('AutoStat');
